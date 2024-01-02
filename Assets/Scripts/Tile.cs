@@ -1,18 +1,38 @@
-using System.Collections;
-using System.Collections.Generic;
 using UnityEngine;
-using UnityEngine.Serialization;
-
 public class Tile : MonoBehaviour
 {
-    private Board m_board;
-    [SerializeField] private int xIndex;
-    [SerializeField] private int yIndex;
+    public int xIndex;
+    public int yIndex;
+    private Board _mBoard;
 
     public void Init(int x,int y, Board board)
     {
         xIndex = x;
         yIndex = y;
-        m_board = board;
+        _mBoard = board;
+    }
+
+    private void OnMouseDown()
+    {
+        if (_mBoard != null)
+        {
+            _mBoard.ClickedTile(this);
+        }
+    }
+
+    private void OnMouseEnter()
+    {
+        if (_mBoard != null)
+        {
+            _mBoard.DragToTile(this);
+        }
+    }
+
+    private void OnMouseUp()
+    {
+        if (_mBoard != null)
+        {
+            _mBoard.ReleaseTile();
+        }
     }
 }
