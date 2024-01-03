@@ -1,10 +1,9 @@
 using System.Collections;
 using UnityEngine;
-
 public class GamePiece : MonoBehaviour
 {
-    private int _xIndex;
-    private int _yIndex;
+    public int xIndex;
+    public int yIndex;
     private Board _mBoard;
 
     private bool _mIsMoving;
@@ -19,6 +18,21 @@ public class GamePiece : MonoBehaviour
         SmoothStep,
         SmootherStep
     };
+
+    public MatchValue matchValue;
+
+    public enum MatchValue
+    {
+        Yellow,
+        Red,
+        Blue,
+        Green,
+        Cyan,
+        Indigo,
+        Magenta, 
+        Teal
+    }
+    
 
     private void Update()
     {
@@ -38,8 +52,8 @@ public class GamePiece : MonoBehaviour
     
     public void SetCoord(int x, int y)
     {
-        _xIndex = x;
-        _yIndex = y;
+        xIndex = x;
+        yIndex = y;
     }
 
     public void Move(int destinationX, int destinationY, float timeToMove)

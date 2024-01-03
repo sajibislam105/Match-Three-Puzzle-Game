@@ -98,3 +98,4 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: 
   interpolation: 4
+  matchValue: 4

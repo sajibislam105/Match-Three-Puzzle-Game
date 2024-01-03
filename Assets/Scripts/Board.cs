@@ -1,3 +1,6 @@
+using System.Collections;
+using System.Collections.Generic;
+using System.Linq;
 using Unity.Mathematics;
 using UnityEngine;
 using Random = UnityEngine.Random;
@@ -12,8 +15,8 @@ public class Board : MonoBehaviour
     [SerializeField] private GameObject[] gamePiecesPrefabs;
     
     private Camera _camera;
-    private Tile[,] m_AllTiles;
-    private GamePiece[,] m_AllGamePieces;
+    private Tile[,] _mAllTiles;
+    private GamePiece[,] _mAllGamePieces;
 
     private Tile _mClickedTile;
     private Tile _mTargetTile;
@@ -25,8 +28,8 @@ public class Board : MonoBehaviour
 
     private void Start()
     {
-        m_AllTiles = new Tile[width, height];
-        m_AllGamePieces = new GamePiece[width, height];
+        _mAllTiles = new Tile[width, height];
+        _mAllGamePieces = new GamePiece[width, height];
         SetupTiles();
         SetupCamera();
         FillRandom();
@@ -42,11 +45,11 @@ public class Board : MonoBehaviour
                 
                 tile.name = $"Tile ({i},{j})";
                 
-                m_AllTiles[i, j] = tile.GetComponent<Tile>();
+                _mAllTiles[i, j] = tile.GetComponent<Tile>();
                 
                 tile.transform.parent = transform;
                 
-                m_AllTiles[i,j].Init(i,j,this);
+                _mAllTiles[i,j].Init(i,j,this);
                 
             }
         }  
@@ -91,7 +94,7 @@ public class Board : MonoBehaviour
         gamePiece.transform.rotation = Quaternion.identity;
         if (IsWithinBounds(x,y))
         {
-            m_AllGamePieces[x, y] = gamePiece;    
+            _mAllGamePieces[x, y] = gamePiece;    
         }
         gamePiece.SetCoord(x, y);
     }
@@ -117,7 +120,6 @@ public class Board : MonoBehaviour
             }
         } 
     }
-
     public void ClickedTile(Tile tile)
     {
         if (_mClickedTile == null)
@@ -126,7 +128,6 @@ public class Board : MonoBehaviour
             //Debug.Log($"Clicked Tile {_mClickedTile}");
         }
     }
-
     public  void DragToTile(Tile tile)
     {
         if (_mClickedTile != null && IsNextTo(tile,_mClickedTile))
@@ -144,14 +145,42 @@ public class Board : MonoBehaviour
         _mClickedTile = null;
         _mTargetTile = null;
     }
-
     private void SwitchTiles(Tile clickedTile, Tile targetTile)
     {
-        GamePiece clickedPiece = m_AllGamePieces[clickedTile.xIndex, clickedTile.yIndex];
-        GamePiece targetPiece = m_AllGamePieces[targetTile.xIndex, targetTile.yIndex];
+        StartCoroutine(SwitchTilesRoutine(clickedTile, targetTile));
+    }
 
-        clickedPiece.Move(targetTile.xIndex, targetTile.yIndex, swapTime);
-        targetPiece.Move(clickedTile.xIndex, clickedTile.yIndex, swapTime);
+    private IEnumerator SwitchTilesRoutine(Tile clickedTile, Tile targetTile)
+    {
+        GamePiece clickedPiece = _mAllGamePieces[clickedTile.xIndex, clickedTile.yIndex];
+        GamePiece targetPiece = _mAllGamePieces[targetTile.xIndex, targetTile.yIndex];
+
+        if (targetPiece != null && clickedPiece != null)
+        {
+            clickedPiece.Move(targetTile.xIndex, targetTile.yIndex, swapTime);
+            targetPiece.Move(clickedTile.xIndex, clickedTile.yIndex, swapTime);
+
+            yield return new WaitForSeconds(swapTime);
+
+            List<GamePiece> clickedPieceMatches = FindMatchesAt(clickedTile.xIndex, clickedTile.yIndex);
+            List<GamePiece> targetPieceMatches = FindMatchesAt(targetTile.xIndex, targetTile.yIndex);
+
+            if (targetPieceMatches.Count == 0 && clickedPieceMatches.Count == 0)
+            {
+                Debug.Log("No Matches");
+                clickedPiece.Move(clickedTile.xIndex, clickedPiece.yIndex,swapTime);
+                targetPiece.Move(targetTile.xIndex, targetTile.yIndex,swapTime);
+            }
+            else
+            {
+                //destroying the matching pieces
+                yield return new WaitForSeconds(swapTime);
+                ClearPieceAt(clickedPieceMatches);
+                ClearPieceAt(targetPieceMatches);
+                //HighLightMatchesAt(clickedTile.xIndex, clickedTile.yIndex);
+                //HighLightMatchesAt(targetTile.xIndex, targetTile.yIndex);
+            }
+        }
     }
 
     //checking if the tile is adjacent or not
@@ -166,6 +195,194 @@ public class Board : MonoBehaviour
             return true;
         }
         return false;
+    }
+
+    List<GamePiece> FindMatches(int startX, int startY, Vector2 searchDirection, int minLength = 3)
+    {
+        List<GamePiece> matches = new List<GamePiece>();
+        GamePiece startPiece = null;
+        
+        if (IsWithinBounds(startX,startY))
+        {
+            startPiece = _mAllGamePieces[startX, startY];
+        } 
+
+        if ( startPiece != null)
+        {
+            matches.Add(startPiece);
+        }
+        else
+        {
+            return null;
+        }
+        int nextX;
+        int nextY;
+
+        int maxValue = (width > height) ? width : height;
+
+        for (int i = 1; i < maxValue - 1; i++)
+        {
+            nextX = startX + Mathf.Clamp((int)searchDirection.x,-1,1 )* i;
+            nextY = startY + Mathf.Clamp((int)searchDirection.y,-1,1 )* i;
+
+            if (!IsWithinBounds(nextX,nextY))
+            {
+                //search done, no more search required
+                break;
+            }
+
+            GamePiece nextPiece = _mAllGamePieces[nextX, nextY];
+            if (nextPiece == null)
+            {
+                break;
+            }
+            else
+            {
+                if (nextPiece.matchValue == startPiece.matchValue && !matches.Contains(nextPiece))
+                {
+                    matches.Add(nextPiece);
+                }
+                else
+                {
+                    break;
+                }
+            }
+        }
+
+        if (matches.Count >= minLength)
+        {
+            return matches;
+        }
+        return null;
+    }
+    private List<GamePiece> FindMatchesAt(int x, int y, int minLength = 3)
+    {
+        List<GamePiece> horizMatches = FindHorizontalMatches(x, y, minLength);
+        List<GamePiece> vertMatches = FindVerticalMatches(x, y, minLength);
+
+        if (horizMatches == null)
+        {
+            horizMatches = new List<GamePiece>();
+        }
+
+        if (vertMatches == null)
+        {
+            vertMatches = new List<GamePiece>();
+        }
+
+        var combinedMatches = horizMatches.Union(vertMatches).ToList();
+        return combinedMatches;
+    }
+    List<GamePiece> FindVerticalMatches(int startX, int startY, int minLength = 3)
+    {
+        List<GamePiece> upwardMatches = FindMatches(startX, startY, new Vector2(0, 1), 2);
+        List<GamePiece> downwardMatches = FindMatches(startX, startY, new Vector2(0, -1), 2);
+
+        if (upwardMatches == null)
+        {
+            upwardMatches = new List<GamePiece>();
+        }
+        
+        if (downwardMatches == null)
+        {
+            downwardMatches = new List<GamePiece>();
+        }
+        
+        /*foreach (GamePiece piece in downwardMatches)
+        {
+            //getting all the pieces in one List
+            if (!upwardMatches.Contains(piece))
+            {
+                upwardMatches.Add(piece);
+            }
+        }
+        return (upwardMatches.Count >= minLength) ? upwardMatches : null;*/
+        //union is a great way to combine list without doubling/duplicating object.
+        var combinedMatches = upwardMatches.Union(downwardMatches).ToList();
+        
+        return (combinedMatches.Count >= minLength) ? combinedMatches:null;
+    }
+    List<GamePiece> FindHorizontalMatches(int startX, int startY, int minLength = 3)
+    {
+        List<GamePiece> rightwardMatches = FindMatches(startX, startY, new Vector2(1, 0), 2);
+        List<GamePiece> leftwardMatches = FindMatches(startX, startY, new Vector2(-1, 0), 2);
+        
+        if (rightwardMatches == null)
+        {
+            rightwardMatches = new List<GamePiece>();
+        }
+        if (leftwardMatches == null)
+        {
+            leftwardMatches = new List<GamePiece>();
+        }
+        //union is a great way to combine list without doubling/duplicating object.
+        var combinedMatches = rightwardMatches.Union(leftwardMatches).ToList();
+        
+        return (combinedMatches.Count >= minLength) ? combinedMatches:null;
+    }
+
+    void HighLightTileOff(int x, int y)
+    {
+        SpriteRenderer spriteRenderer = _mAllTiles[x, y].GetComponent<SpriteRenderer>();
+        //changing opacity to '0'
+        spriteRenderer.color = new Color(spriteRenderer.color.r, spriteRenderer.color.g, spriteRenderer.color.b, 0);
+    }
+    void HighLightTileOn(int x, int y,Color color)
+    {
+        SpriteRenderer spriteRenderer = _mAllTiles[x,y].GetComponent<SpriteRenderer>();
+        spriteRenderer.color = color;
+    }
+    private void HighLightMatchesAt(int x, int y)
+    {
+        HighLightTileOff(x, y);
+        var combinedMatches = FindMatchesAt(x, y);
+        if (combinedMatches.Count > 0)
+        {
+            foreach (GamePiece piece in combinedMatches)
+            {
+                HighLightTileOn(piece.xIndex, piece.yIndex, piece.GetComponent<SpriteRenderer>().color);
+            }
+        }
+    }
+    void HighLightMatches()
+    {
+        for (int i = 0; i < width; i++)
+        {
+            for (int j = 0; j < height; j++)
+            {
+                HighLightMatchesAt(i, j);
+            }
+        }
+    }
+
+    void ClearPieceAt(int x, int y)
+    {
+        GamePiece pieceToClear = _mAllGamePieces[x, y];
+        if (pieceToClear != null)
+        {
+            _mAllGamePieces[x, y] = null;
+            Destroy(pieceToClear.gameObject);
+        }
+        HighLightTileOff(x,y);
+    }
+
+    void ClearBoard()
+    {
+        for (int i = 0; i < width; i++)
+        {
+            for (int j = 0; j < height; j++)
+            {
+                ClearPieceAt(i,j);
+            }
+        }
+    }
+
+    void ClearPieceAt(List<GamePiece> gamePieces)
+    {
+        foreach (GamePiece piece in gamePieces)
+        {
+            ClearPieceAt(piece.xIndex,piece.yIndex);
+        }
     }
 }
     
