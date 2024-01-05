@@ -32,8 +32,6 @@ public class GamePiece : MonoBehaviour
         Magenta, 
         Teal
     }
-    
-
     private void Update()
     {
         /*if (Input.GetKeyDown(KeyCode.D))
@@ -56,11 +54,11 @@ public class GamePiece : MonoBehaviour
         yIndex = y;
     }
 
-    public void Move(int destinationX, int destinationY, float timeToMove)
+    public void Move(int destX, int destY, float timeToMove)
     {
         if (!_mIsMoving)
         {
-            StartCoroutine(MoveRoutine(new Vector3(destinationX, destinationY, 0), timeToMove));
+            StartCoroutine(MoveRoutine(new Vector3(destX, destY, 0), timeToMove));
         }
     }
 
